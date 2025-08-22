@@ -189,6 +189,14 @@ def status(ctx):
 
 
 @main.command()
+def version():
+    """Show version information."""
+    from glaip_sdk.config.constants import SDK_VERSION
+
+    click.echo(f"aip version {SDK_VERSION}")
+
+
+@main.command()
 @click.option(
     "--check-only", is_flag=True, help="Only check for updates without installing"
 )

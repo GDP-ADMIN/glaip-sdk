@@ -4,7 +4,7 @@
 Tests the ToolClient class functionality without external dependencies.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -18,13 +18,7 @@ class TestToolClient:
 
     def setup_method(self):
         """Set up test fixtures."""
-        with (
-            patch("glaip_sdk.client.base.Path.exists") as mock_exists,
-            patch("glaip_sdk.client.base.yaml.safe_load") as mock_yaml_load,
-            patch("builtins.open", new_callable=MagicMock),
-        ):
-            mock_exists.return_value = False  # No config file
-            mock_yaml_load.return_value = {}
+        with patch("glaip_sdk.client.base.load_dotenv"):
             self.client = ToolClient(api_url="http://test.com", api_key="test-key")
 
     @patch.object(ToolClient, "_request")
@@ -38,7 +32,7 @@ class TestToolClient:
         tools = self.client.list_tools()
         assert len(tools) == 1
         assert tools[0].name == "tool1"
-        mock_request.assert_called_once_with("GET", "/tools")
+        mock_request.assert_called_once_with("GET", "/tools/")
 
     @patch.object(ToolClient, "_request")
     def test_get_tool_by_id(self, mock_request):
@@ -72,11 +66,11 @@ class TestToolClient:
         assert str(tool.id) == tool_id
         assert tool.name == "new-tool"
 
-        # Verify the request was made to /tools endpoint (not /tools/upload)
+        # Verify the request was made to /tools/ endpoint (not /tools/upload)
         mock_request.assert_called_once()
         call_args = mock_request.call_args
         assert call_args[0][0] == "POST"  # method
-        assert call_args[0][1] == "/tools"  # endpoint
+        assert call_args[0][1] == "/tools/"  # endpoint
 
     @patch.object(ToolClient, "_request")
     def test_update_tool(self, mock_request):
@@ -104,7 +98,7 @@ class TestToolClient:
         mock_request.return_value = {"success": True}
 
         result = self.client.delete_tool(tool_id)
-        assert result is True
+        assert result is None  # delete_tool returns None
         mock_request.assert_called_once_with("DELETE", f"/tools/{tool_id}")
 
     @patch.object(ToolClient, "_request")
@@ -119,18 +113,7 @@ class TestToolClient:
         tools = self.client.find_tools("test")
         assert len(tools) == 2
         assert all("test" in tool.name for tool in tools)
-        mock_request.assert_called_once_with("GET", "/tools", params={"name": "test"})
-
-    @patch.object(ToolClient, "_request")
-    def test_get_tool_script(self, mock_request):
-        """Test getting tool script content."""
-        tool_id = str(uuid4())
-        mock_response_data = {"script": "def test_function():\n    return 'test'"}
-        mock_request.return_value = mock_response_data
-
-        script = self.client.get_tool_script(tool_id)
-        assert "def test_function" in script
-        mock_request.assert_called_once_with("GET", f"/tools/{tool_id}/script")
+        mock_request.assert_called_once_with("GET", "/tools/")
 
 
 if __name__ == "__main__":

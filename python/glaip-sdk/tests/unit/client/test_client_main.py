@@ -5,7 +5,7 @@ Tests the main Client class functionality without external dependencies.
 """
 
 import os
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -17,14 +17,9 @@ class TestClient:
     """Test the main client functionality."""
 
     @patch.dict(os.environ, {}, clear=True)
-    @patch("glaip_sdk.client.base.Path.exists")
-    @patch("glaip_sdk.client.base.yaml.safe_load")
-    @patch("builtins.open", new_callable=MagicMock)
-    def test_client_initialization(self, mock_open, mock_yaml_load, mock_exists):
+    @patch("glaip_sdk.client.base.load_dotenv")
+    def test_client_initialization(self, mock_load_dotenv):
         """Test client initialization with various parameters."""
-        mock_exists.return_value = False  # No config file
-        mock_yaml_load.return_value = {}
-
         # Test with explicit parameters
         client = Client(api_url="http://test.com", api_key="test-key", timeout=60.0)
         assert client.api_url == "http://test.com"
@@ -32,14 +27,9 @@ class TestClient:
         assert client.timeout == 60.0
 
     @patch.dict(os.environ, {}, clear=True)
-    @patch("glaip_sdk.client.base.Path.exists")
-    @patch("glaip_sdk.client.base.yaml.safe_load")
-    @patch("builtins.open", new_callable=MagicMock)
-    def test_client_context_manager(self, mock_open, mock_yaml_load, mock_exists):
+    @patch("glaip_sdk.client.base.load_dotenv")
+    def test_client_context_manager(self, mock_load_dotenv):
         """Test client context manager functionality."""
-        mock_exists.return_value = False  # No config file
-        mock_yaml_load.return_value = {}
-
         client = Client(api_url="http://test.com", api_key="test-key")
         assert client.http_client is not None
 
@@ -51,28 +41,16 @@ class TestClient:
         assert client.http_client.is_closed is True
 
     @patch.dict(os.environ, {}, clear=True)
-    @patch("glaip_sdk.client.base.Path.exists")
-    @patch("glaip_sdk.client.base.yaml.safe_load")
-    @patch("builtins.open", new_callable=MagicMock)
-    def test_client_timeout_property(self, mock_open, mock_yaml_load, mock_exists):
+    @patch("glaip_sdk.client.base.load_dotenv")
+    def test_client_timeout_property(self, mock_load_dotenv):
         """Test client timeout property."""
-        mock_exists.return_value = False  # No config file
-        mock_yaml_load.return_value = {}
-
         client = Client(api_url="http://test.com", api_key="test-key", timeout=45.0)
         assert client.timeout == 45.0
 
     @patch.dict(os.environ, {}, clear=True)
-    @patch("glaip_sdk.client.base.Path.exists")
-    @patch("glaip_sdk.client.base.yaml.safe_load")
-    @patch("builtins.open", new_callable=MagicMock)
-    def test_client_validation_error_handling(
-        self, mock_open, mock_yaml_load, mock_exists
-    ):
+    @patch("glaip_sdk.client.base.load_dotenv")
+    def test_client_validation_error_handling(self, mock_load_dotenv):
         """Test client validation error handling."""
-        mock_exists.return_value = False  # No config file
-        mock_yaml_load.return_value = {}
-
         # Test missing API key
         with pytest.raises(ValueError, match="AIP_API_KEY not found"):
             Client(api_url="http://test.com")
@@ -174,10 +152,15 @@ class TestClient:
 
         # Mock MCP client methods
         with patch.object(client.mcps, "list_mcps") as mock_list:
-            mock_list.return_value = [{"id": "mcp1"}, {"id": "mcp2"}]
+            # Create mock MCP objects with _set_client method
+            mock_mcp1 = Mock()
+            mock_mcp1._set_client = Mock()
+            mock_mcp2 = Mock()
+            mock_mcp2._set_client = Mock()
+            mock_list.return_value = [mock_mcp1, mock_mcp2]
 
             mcps = client.list_mcps()
-            assert mcps == [{"id": "mcp1"}, {"id": "mcp2"}]
+            assert mcps == [mock_mcp1, mock_mcp2]
             mock_list.assert_called_once()
 
     def test_client_tool_delegation(self):
@@ -186,10 +169,15 @@ class TestClient:
 
         # Mock tool client methods
         with patch.object(client.tools, "list_tools") as mock_list:
-            mock_list.return_value = [{"id": "tool1"}, {"id": "tool2"}]
+            # Create mock Tool objects with _set_client method
+            mock_tool1 = Mock()
+            mock_tool1._set_client = Mock()
+            mock_tool2 = Mock()
+            mock_tool2._set_client = Mock()
+            mock_list.return_value = [mock_tool1, mock_tool2]
 
             tools = client.list_tools()
-            assert tools == [{"id": "tool1"}, {"id": "tool2"}]
+            assert tools == [mock_tool1, mock_tool2]
             mock_list.assert_called_once()
 
     def test_client_agent_delegation_with_complex_params(self):
@@ -199,23 +187,27 @@ class TestClient:
         # Mock agent client create_agent method
         with patch.object(client.agents, "create_agent") as mock_create:
             mock_agent = Mock()
+            mock_agent._set_client = Mock()
             mock_create.return_value = mock_agent
 
-            # Test with complex parameters
+            # Test with complex parameters - actually pass the parameters
             agent = client.create_agent(
                 name="test-agent",
+                model="gpt-4",
                 instruction="This is a test instruction that is long enough",
+                tools=["tool1", "tool2"],
+                agents=["agent1"],
+                timeout=600,
+                custom_param="value",
             )
             assert agent is not None
             mock_create.assert_called_once_with(
                 name="test-agent",
                 model="gpt-4",
-                instruction="Test instruction",
+                instruction="This is a test instruction that is long enough",
                 tools=["tool1", "tool2"],
                 agents=["agent1"],
                 timeout=600,
-                strict_validation=True,
-                forbid_reserved_names=True,
                 custom_param="value",
             )
 
@@ -248,13 +240,19 @@ class TestClient:
         # Test create_agent
         with patch.object(client.agents, "create_agent") as mock_create:
             mock_agent = Mock()
+            mock_agent._set_client = Mock()
             mock_create.return_value = mock_agent
             result = client.create_agent(
                 name="test-agent", instruction="test instruction"
             )
             assert result == mock_agent
             mock_create.assert_called_once_with(
-                name="test-agent", instruction="test instruction"
+                name="test-agent",
+                model=None,
+                instruction="test instruction",
+                tools=None,
+                agents=None,
+                timeout=300,
             )
 
     def test_client_tool_delegation_methods(self):
