@@ -1,0 +1,121 @@
+name: AI Agent Platform SDK CI/CD
+
+on:
+  push:
+    branches: [ main, main-dev ]
+    paths:
+      - 'ai-agent-platform-sdk/**'
+  pull_request:
+    branches: [ main, main-dev ]
+    paths:
+      - 'ai-agent-platform-sdk/**'
+  release:
+    types: [published, created]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-agent-platform-sdk
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Needed for version detection
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v3
+      with:
+        path: ai-agent-platform-sdk/.venv
+        key: venv-${{ runner.os }}-${{ steps.set-python-version.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --with dev
+
+    - name: Run pre-commit hooks
+      run: poetry run pre-commit run --all-files
+
+    - name: Run tests with coverage
+      run: poetry run python -m pytest tests/ -v --cov=glaip_sdk --cov-report=term-missing --cov-report=xml --cov-fail-under=90
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ai-agent-platform-sdk/coverage.xml
+        flags: sdk
+        name: sdk-coverage
+
+    - name: Update version for release
+      if: github.event_name == 'release'
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        poetry version $VERSION
+        echo "Version updated to: $VERSION"
+
+    - name: Build package
+      run: poetry build
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: sdk-package
+        path: ai-agent-platform-sdk/dist/
+
+    - name: Publish to PyPI (Release only)
+      if: github.event_name == 'release'
+      run: |
+        poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+        poetry publish
+      env:
+        PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
+
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-agent-platform-sdk
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Install dependencies
+      run: poetry install --with dev
+
+    - name: Run black
+      run: poetry run black --check --diff .
+
+    - name: Run isort
+      run: poetry run isort --check-only --diff .
+
+    - name: Run flake8
+      run: poetry run flake8 .
+
+    - name: Run pylint
+      run: poetry run pylint glaip_sdk/ tests/ --disable=C0114,C0116

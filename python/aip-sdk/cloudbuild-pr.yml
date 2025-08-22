@@ -1,0 +1,103 @@
+steps:
+- id: Install Poetry
+  name: 'gcr.io/cloud-builders/gcloud'
+  dir: 'ai-agent-platform-sdk'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      curl -sSL https://install.python-poetry.org | python3 -
+      export PATH="$HOME/.local/bin:$PATH"
+      poetry --version
+
+- id: Install Dependencies
+  name: 'gcr.io/cloud-builders/gcloud'
+  dir: 'ai-agent-platform-sdk'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      export PATH="$HOME/.local/bin:$PATH"
+      poetry install --with dev
+
+- id: Run Pre-commit
+  name: 'gcr.io/cloud-builders/gcloud'
+  dir: 'ai-agent-platform-sdk'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      export PATH="$HOME/.local/bin:$PATH"
+      poetry run pre-commit run --all-files
+
+- id: Run Tests
+  name: 'gcr.io/cloud-builders/gcloud'
+  dir: 'ai-agent-platform-sdk'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      export PATH="$HOME/.local/bin:$PATH"
+      poetry run python -m pytest tests/ -v --cov=glaip_sdk --cov-report=term-missing --cov-report=xml --cov-fail-under=90
+
+- id: Build Package (Test)
+  name: 'gcr.io/cloud-builders/gcloud'
+  dir: 'ai-agent-platform-sdk'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      export PATH="$HOME/.local/bin:$PATH"
+      poetry build
+
+- id: Run SCA
+  name: 'gcr.io/$PROJECT_ID/secops'
+  dir: 'ai-agent-platform-sdk'
+  script: |
+    #!/bin/bash
+    set -xe
+    export WORKSPACE=$(pwd)
+    bash /opt/sq.sh
+  env:
+    - 'PROJECT_ID=$PROJECT_ID'
+    - 'CI_PR_NUMBER=${_PR_NUMBER}'
+    - 'CI_BRANCH=${BRANCH_NAME}'
+    - 'CI_BASE_BRANCH=${_BASE_BRANCH}'
+  secretEnv:
+    - 'SCA_TOKEN'
+
+- id: Vulnerability Scanning
+  dir: 'ai-agent-platform-sdk'
+  name: 'gcr.io/$PROJECT_ID/trivyhub'
+  waitFor: ['Run Tests']
+  args:
+    - 'fs'
+    - 'poetry.lock'
+    - 'trivy-result.txt'
+  env:
+    - 'REPOSITORY=${_GITHUB_USER}/${REPO_NAME}'
+    - 'COMMIT_ID=${REVISION_ID}'
+    - 'TRIVY_CACHE_DIR=.cache/trivy/'
+  secretEnv:
+    - 'GH_TOKEN'
+
+timeout: 30m
+options:
+  env:
+    - 'XDG_CACHE_HOME=.cache'
+    - 'SONAR_USER_HOME=.cache'
+  defaultLogsBucketBehavior: REGIONAL_USER_OWNED_BUCKET
+
+substitutions:
+  _PROJECT: ai-agent-platform
+  _MODULE: ai-agent-platform-sdk
+  _GITHUB_USER: GDP-ADMIN
+
+availableSecrets:
+  secretManager:
+  - versionName: 'projects/$PROJECT_ID/secrets/INFRA_GL_GITHUB_TOKEN/versions/latest'
+    env: 'GH_TOKEN'
+  - versionName: 'projects/$PROJECT_ID/secrets/INFRA_GL_SONARQUBE_TOKEN/versions/latest'
+    env: 'SCA_TOKEN'
+
+tags: ['ai-agent-platform', 'sdk', 'pull-request']
