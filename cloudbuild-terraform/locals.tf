@@ -2,7 +2,6 @@ locals {
   repository = {
     name                 = "glaip-sdk"
     owner                = "GDP-ADMIN"
-    host-asia-southeast2 = "GDP-ADMIN3"
   }
 
   # Discover module names by listing directories in python/ that match the pattern
