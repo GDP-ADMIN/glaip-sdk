@@ -11,8 +11,8 @@
 **📖 [Official Documentation](https://gdplabs.gitbook.io/ai-agents-platform/gl-aip-sdk/overview)** - Complete guides, API reference, and tutorials
 
 Additional resources:
-- [Python SDK README](python/aip-sdk/README.md) - Technical implementation and development details
-- [Code Examples](python/aip-sdk/examples/) - Working code samples
+- [Python SDK README](python/glaip-sdk/README.md) - Technical implementation and development details
+- [Code Examples](python/glaip-sdk/examples/) - Working code samples
 
 ## 🚀 Quick Start
 
@@ -24,7 +24,7 @@ pip install glaip-sdk
 
 # Or install locally for development
 git clone https://github.com/gdplabs/glaip-sdk.git
-cd glaip-sdk/python/aip-sdk
+cd glaip-sdk/python/glaip-sdk
 pip install -e .
 ```
 
@@ -33,7 +33,7 @@ pip install -e .
 
 ```
 glaip-sdk/
-├── python/aip-sdk/          # Main Python SDK
+├── python/glaip-sdk/          # Main Python SDK
 │   ├── glaip_sdk/           # Core SDK package
 │   ├── examples/            # Usage examples
 │   └── README.md            # Detailed SDK documentation
