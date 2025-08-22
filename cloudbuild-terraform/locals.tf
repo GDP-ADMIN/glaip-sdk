@@ -1,7 +1,8 @@
 locals {
   repository = {
     name                 = "glaip-sdk"
-    owner                = "GDP-ADMIN3"
+    owner                = "GDP-ADMIN"
+    host-asia-southeast2 = "GDP-ADMIN3"
   }
 
   # Discover module names by listing directories in python/ that match the pattern
@@ -16,8 +17,4 @@ locals {
       }
     ]
   ])
-
-  # Discover module names by listing directories in js/ that match the pattern
-  js_modules_dirs  = distinct(flatten([for _, v in fileset("${path.module}/../js", "**") : regex("([^/]*).*", dirname(v))]))
-  js_modules_names = slice(local.js_modules_dirs, 1, length(local.js_modules_dirs))
 }
