@@ -4,7 +4,6 @@ module "gcb_ai_agent_platform_pr_python_sdk" {
   project_id = local.project_id.gdplabs
   for_each   = { for idx, val in local.python_combined : "${val.module}-${val.version}" => val }
 
-  disabled    = each.value.version == "3.13" && !(each.value.module == "glaip-sdk")
   name        = lower(replace("${local.repository["name"]}-pr-${each.value.module}-python${each.value.version}", ".", "-"))
   description = "AI Agent Platform SDK"
   owner       = local.repository["owner"]
@@ -30,7 +29,6 @@ module "gcb_ai_agent_platform_push_tag_python_sdk" {
   project_id = local.project_id.gdplabs
   for_each   = { for idx, val in local.python_combined : "${val.module}-${val.version}" => val }
 
-  disabled    = each.value.version == "3.13" && !(each.value.module == "glaip-sdk")
   name        = lower(replace("${local.repository["name"]}-push-tag-${each.value.module}-python${each.value.version}", ".", "-"))
   description = "AI Agent Plaform SDK"
   owner       = local.repository["owner"]
