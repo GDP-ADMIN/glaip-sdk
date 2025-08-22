@@ -8,13 +8,11 @@
 
 ## 📚 Documentation
 
-**📖 [Complete Documentation](https://gdplabs.gitbook.io/ai-agents-platform/gl-aip-sdk/overview)**
-
-For detailed guides, API reference, and examples, visit our comprehensive GitBook documentation.
+**📖 [Official Documentation](https://gdplabs.gitbook.io/ai-agents-platform/gl-aip-sdk/overview)** - Complete guides, API reference, and tutorials
 
 Additional resources:
-- [SDK Documentation](python/aip-sdk/README.md) - Technical implementation details
-- [Examples](python/aip-sdk/examples/) - Working code samples
+- [Python SDK README](python/aip-sdk/README.md) - Technical implementation and development details
+- [Code Examples](python/aip-sdk/examples/) - Working code samples
 
 ## 🚀 Quick Start
 
