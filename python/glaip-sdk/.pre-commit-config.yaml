@@ -1,34 +1,26 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
-# This config only affects files within the ai-agent-platform-sdk directory
+# This config affects Python files in the current directory
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
     - id: check-merge-conflict
-      files: ^ai-agent-platform-sdk/
     - id: no-commit-to-branch
       args: [--branch, master]
-      files: ^ai-agent-platform-sdk/
     - id: check-ast
-      files: ^ai-agent-platform-sdk/
     - id: trailing-whitespace
-      files: ^ai-agent-platform-sdk/
     - id: end-of-file-fixer
       exclude: license_files/.*\.license$
-      files: ^ai-agent-platform-sdk/
     - id: check-added-large-files
       args: ['--maxkb=750']
       exclude: poetry\.lock$
-      files: ^ai-agent-platform-sdk/
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.4
     hooks:
       - id: ruff
         types_or: [ python, pyi ]
         args: [ --fix ]
-        files: ^ai-agent-platform-sdk/
       - id: ruff-format
         types_or: [ python, pyi, jupyter ]
         exclude: license_files/.*\.license$
-        files: ^ai-agent-platform-sdk/

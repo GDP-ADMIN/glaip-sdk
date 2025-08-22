@@ -26,7 +26,7 @@ try:
     agent = client.create_agent(
         name="hello-agent",
         instruction="You are a friendly AI assistant. Use the hello world tool to greet users.",
-        tools=[tool]
+        tools=[tool],
     )
 
     agent.run("Please greet me using your hello world tool!")

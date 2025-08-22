@@ -127,6 +127,14 @@ class AgentClient(BaseClient):
             "model_name": model or "gpt-4.1",  # Ensure model_name is never None
         }
 
+        # Ensure minimum required metadata for visibility
+        if "metadata" not in kwargs:
+            kwargs["metadata"] = {}
+
+        # Always include the minimum required metadata for visibility
+        if "type" not in kwargs["metadata"]:
+            kwargs["metadata"]["type"] = "custom"
+
         # Extract IDs from tool and agent objects
         tool_ids = self._extract_ids(tools)
         agent_ids = self._extract_ids(agents)
