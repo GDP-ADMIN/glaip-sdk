@@ -38,7 +38,6 @@ steps:
     - 'VERSION=${_VERSION}'
     - 'TAG_NAME=${TAG_NAME}'
   secretEnv:
-    - 'NPM_TOKEN'
     - 'PYPI_TOKEN'
 
 - id: Run SCA
