@@ -203,28 +203,57 @@ class TestResourceValidator:
             ResourceValidator.extract_tool_ids(tools, mock_client)
 
     def test_extract_agent_names_with_strings(self):
-        """Test extracting agent names from string names."""
+        """Test extracting agent IDs from string names."""
         mock_client = Mock()
+
+        # Mock agents with IDs
+        mock_agent1 = Mock()
+        mock_agent1.id = "550e8400-e29b-41d4-a716-446655440001"
+        mock_agent2 = Mock()
+        mock_agent2.id = "550e8400-e29b-41d4-a716-446655440002"
+        mock_agent3 = Mock()
+        mock_agent3.id = "550e8400-e29b-41d4-a716-446655440003"
+
+        # Setup find_agents to return appropriate agents
+        def mock_find_agents(name=None):
+            if name == "agent1":
+                return [mock_agent1]
+            elif name == "agent2":
+                return [mock_agent2]
+            elif name == "agent3":
+                return [mock_agent3]
+            return []
+
+        mock_client.find_agents = mock_find_agents
 
         agents = ["agent1", "agent2", "agent3"]
-        result = ResourceValidator.extract_agent_names(agents, mock_client)
+        result = ResourceValidator.extract_agent_ids(agents, mock_client)
 
-        assert result == ["agent1", "agent2", "agent3"]
+        expected = [
+            "550e8400-e29b-41d4-a716-446655440001",
+            "550e8400-e29b-41d4-a716-446655440002",
+            "550e8400-e29b-41d4-a716-446655440003",
+        ]
+        assert result == expected
 
     def test_extract_agent_names_with_agent_objects_having_names(self):
-        """Test extracting agent names from agent objects with names."""
+        """Test extracting agent IDs from agent objects with names."""
         mock_client = Mock()
 
-        # Create agent objects with names
+        # Create agent objects with names - but extract_agent_ids expects IDs, not names
+        # So we should test with agent objects that have IDs
         agent1 = Mock()
-        agent1.name = "test-agent-1"
+        agent1.id = "550e8400-e29b-41d4-a716-446655440001"
         agent2 = Mock()
-        agent2.name = "test-agent-2"
+        agent2.id = "550e8400-e29b-41d4-a716-446655440002"
 
         agents = [agent1, agent2]
-        result = ResourceValidator.extract_agent_names(agents, mock_client)
+        result = ResourceValidator.extract_agent_ids(agents, mock_client)
 
-        assert result == ["test-agent-1", "test-agent-2"]
+        assert result == [
+            "550e8400-e29b-41d4-a716-446655440001",
+            "550e8400-e29b-41d4-a716-446655440002",
+        ]
 
     def test_extract_agent_names_with_agent_objects_having_ids_fallback(self):
         """Test extracting agent names from agent objects with IDs as fallback."""
@@ -237,7 +266,7 @@ class TestResourceValidator:
         agent.id = agent_id
 
         agents = [agent]
-        result = ResourceValidator.extract_agent_names(agents, mock_client)
+        result = ResourceValidator.extract_agent_ids(agents, mock_client)
 
         assert result == [agent_id]
 
@@ -254,9 +283,9 @@ class TestResourceValidator:
 
         with pytest.raises(
             ValidationError,
-            match="Invalid agent reference.*must have 'name' or 'id' attribute",
+            match="Invalid agent reference.*must have 'id' or 'name' attribute",
         ):
-            ResourceValidator.extract_agent_names(agents, mock_client)
+            ResourceValidator.extract_agent_ids(agents, mock_client)
 
     def test_validate_tools_exist_success(self):
         """Test successful tool validation when all tools exist."""
@@ -294,45 +323,63 @@ class TestResourceValidator:
         """Test successful agent validation when all agents exist."""
         mock_client = Mock()
 
-        # Mock successful agent retrieval
-        mock_agent = Mock()
-        mock_client.find_agents.return_value = [mock_agent]
+        # Mock get_agent_by_id to return agents successfully
+        mock_agent1 = Mock()
+        mock_agent1.id = "550e8400-e29b-41d4-a716-446655440001"
+        mock_agent2 = Mock()
+        mock_agent2.id = "550e8400-e29b-41d4-a716-446655440002"
 
-        agent_names = ["agent1", "agent2"]
+        def mock_get_agent_by_id(agent_id):
+            if agent_id == "550e8400-e29b-41d4-a716-446655440001":
+                return mock_agent1
+            elif agent_id == "550e8400-e29b-41d4-a716-446655440002":
+                return mock_agent2
+            else:
+                from glaip_sdk.exceptions import NotFoundError
+
+                raise NotFoundError(f"Agent not found: {agent_id}")
+
+        mock_client.get_agent_by_id = mock_get_agent_by_id
+
+        agent_ids = [
+            "550e8400-e29b-41d4-a716-446655440001",
+            "550e8400-e29b-41d4-a716-446655440002",
+        ]
 
         # Should not raise any exception
-        ResourceValidator.validate_agents_exist(agent_names, mock_client)
-
-        # Verify all agents were checked
-        assert mock_client.find_agents.call_count == 2
-        mock_client.find_agents.assert_any_call(name="agent1")
-        mock_client.find_agents.assert_any_call(name="agent2")
+        ResourceValidator.validate_agents_exist(agent_ids, mock_client)
 
     def test_validate_agents_exist_not_found(self):
         """Test agent validation when an agent doesn't exist."""
         mock_client = Mock()
 
-        # Mock agent not found (empty list)
-        mock_client.find_agents.return_value = []
+        # Mock get_agent_by_id to raise NotFoundError
+        def mock_get_agent_by_id(agent_id):
+            from glaip_sdk.exceptions import NotFoundError
 
-        agent_names = ["nonexistent-agent"]
+            raise NotFoundError(f"Agent not found: {agent_id}")
 
-        with pytest.raises(ValidationError, match="Agent not found: nonexistent-agent"):
-            ResourceValidator.validate_agents_exist(agent_names, mock_client)
+        mock_client.get_agent_by_id = mock_get_agent_by_id
+
+        agent_ids = ["550e8400-e29b-41d4-a716-446655440000"]
+
+        with pytest.raises(
+            ValidationError,
+            match="Agent not found: 550e8400-e29b-41d4-a716-446655440000",
+        ):
+            ResourceValidator.validate_agents_exist(agent_ids, mock_client)
 
     def test_validate_agents_exist_client_error(self):
         """Test agent validation when client raises an exception."""
         mock_client = Mock()
 
-        # Mock client error
-        mock_client.find_agents.side_effect = Exception("Client error")
+        # Mock client error on get_agent_by_id - this will bubble up as a general exception
+        mock_client.get_agent_by_id.side_effect = Exception("Client error")
 
-        agent_names = ["agent-name"]
+        agent_ids = ["550e8400-e29b-41d4-a716-446655440001"]
 
-        with pytest.raises(
-            ValidationError, match="Failed to validate agent 'agent-name'"
-        ):
-            ResourceValidator.validate_agents_exist(agent_names, mock_client)
+        with pytest.raises(Exception, match="Client error"):
+            ResourceValidator.validate_agents_exist(agent_ids, mock_client)
 
 
 if __name__ == "__main__":

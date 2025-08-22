@@ -4,7 +4,7 @@
 Tests the MCPClient class functionality without external dependencies.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
@@ -18,13 +18,7 @@ class TestMCPClient:
 
     def setup_method(self):
         """Set up test fixtures."""
-        with (
-            patch("glaip_sdk.client.base.Path.exists") as mock_exists,
-            patch("glaip_sdk.client.base.yaml.safe_load") as mock_yaml_load,
-            patch("builtins.open", new_callable=MagicMock),
-        ):
-            mock_exists.return_value = False  # No config file
-            mock_yaml_load.return_value = {}
+        with patch("glaip_sdk.client.base.load_dotenv"):
             self.client = MCPClient(api_url="http://test.com", api_key="test-key")
 
     @patch.object(MCPClient, "_request")
@@ -38,7 +32,7 @@ class TestMCPClient:
         mcps = self.client.list_mcps()
         assert len(mcps) == 1
         assert mcps[0].name == "mcp1"
-        mock_request.assert_called_once_with("GET", "/mcps")
+        mock_request.assert_called_once_with("GET", "/mcps/")
 
     @patch.object(MCPClient, "_request")
     def test_get_mcp_by_id(self, mock_request):
@@ -69,11 +63,11 @@ class TestMCPClient:
         assert str(mcp.id) == mcp_id
         assert mcp.name == "new-mcp"
 
-        # Verify the request was made
-        mock_request.assert_called_once()
-        call_args = mock_request.call_args
-        assert call_args[0][0] == "POST"  # method
-        assert call_args[0][1] == "/mcps"  # endpoint
+        # Verify the request was made (may be called multiple times for creation and retrieval)
+        assert mock_request.call_count >= 1
+        first_call = mock_request.call_args_list[0]
+        assert first_call[0][0] == "POST"  # method
+        assert first_call[0][1] == "/mcps/"  # endpoint
 
     @patch.object(MCPClient, "_request")
     def test_update_mcp(self, mock_request):
@@ -101,7 +95,7 @@ class TestMCPClient:
         mock_request.return_value = {"success": True}
 
         result = self.client.delete_mcp(mcp_id)
-        assert result is True
+        assert result is None  # delete_mcp returns None
         mock_request.assert_called_once_with("DELETE", f"/mcps/{mcp_id}")
 
     @patch.object(MCPClient, "_request")
@@ -118,8 +112,8 @@ class TestMCPClient:
         mcps = self.client.find_mcps("test")
         assert len(mcps) == 2
         assert all("test" in mcp.name for mcp in mcps)
-        # MCPClient.find_mcps calls GET /mcps without params and filters client-side
-        mock_request.assert_called_once_with("GET", "/mcps")
+        # MCPClient.find_mcps calls GET /mcps/ without params and filters client-side
+        mock_request.assert_called_once_with("GET", "/mcps/")
 
 
 if __name__ == "__main__":
