@@ -17,7 +17,7 @@ from glaip_sdk.cli.commands.tools import tools_group
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="aip")
+@click.version_option(version="0.1.1", prog_name="aip")
 @click.option("--api-url", envvar="AIP_API_URL", help="AIP API URL")
 @click.option("--api-key", envvar="AIP_API_KEY", help="AIP API Key")
 @click.option("--timeout", default=30.0, help="Request timeout in seconds")
