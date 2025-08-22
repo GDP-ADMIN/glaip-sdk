@@ -24,7 +24,10 @@ class Agent(BaseModel):
     agents: list[dict[str, Any]] | None = None  # Backend returns AgentReference objects
     agent_config: dict[str, Any] | None = None
     timeout: int = 300
-    _client: Any = None  # Will hold client reference
+    metadata: dict[str, Any] | None = None 
+    language_model_id: str | None = None  
+    a2a_profile: dict[str, Any] | None = None  
+    _client: Any = None  
 
     def _set_client(self, client):
         """Set the client reference for this resource."""

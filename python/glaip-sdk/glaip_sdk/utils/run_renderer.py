@@ -337,8 +337,12 @@ class RichStreamRenderer:
         """Check if a tool name indicates delegation functionality."""
         if not tool_name:
             return False
-        # common patterns: delegate_to_math_specialist, delegate, spawn_agent, etc.
-        return bool(re.search(r"(?:^|_)delegate(?:_|$)|^delegate_to_", tool_name, re.I))
+        # common patterns: delegate_to_weather-sub-agent, delegate_to_math_specialist, delegate, spawn_agent, etc.
+        return bool(
+            re.search(
+                r"delegate_to_|(?:^|_)delegate(?:_|$)|spawn_|sub_agent", tool_name, re.I
+            )
+        )
 
     def _main_title(self) -> str:
         """Generate main panel title with spinner and status chips."""
@@ -497,7 +501,10 @@ class RichStreamRenderer:
 
                 # Use spinner for running steps, checkmark for finished
                 tail = " ✓" if st.status == "finished" else f" {self._spinner()}"
-                lines.append(f"{icon}{st.name}{rhs} {dur}{tail}".rstrip())
+
+                # Show actual tool name or improved step name
+                display_name = st.name if st.name != "step" else f"{st.kind} step"
+                lines.append(f"{icon}{display_name}{rhs} {dur}{tail}".rstrip())
             return Text("\n".join(lines), style="dim")
 
         # verbose: full tree
@@ -508,9 +515,26 @@ class RichStreamRenderer:
             icon = (
                 "⚙️" if st.kind == "tool" else ("🤝" if st.kind == "delegate" else "🧠")
             )
+
+            # Build detailed label for verbose mode
             label = f"{icon} {st.name}"
             if args_str:
                 label += f"({args_str})"
+
+            # Add tool output for finished tools (truncated for display)
+            if st.status == "finished" and st.output and st.kind == "tool":
+                # For verbose mode, show more output details
+                if len(st.output) <= 200:
+                    # Short output: show inline
+                    output_preview = _pretty_out(st.output, max_len=200)
+                    if output_preview:
+                        label += f" → {output_preview}"
+                else:
+                    # Long output: show first part with indicator
+                    first_line = st.output.split("\n")[0][:100]
+                    if first_line:
+                        label += f" → {first_line}... (truncated, see tool panel for full output)"
+
             label += f" {dur} {'✓' if st.status=='finished' else '…'}"
             node2 = node.add(label)
             for child_id in self.steps.children.get(sid, []):
@@ -699,6 +723,8 @@ class RichStreamRenderer:
                 tool_name = None
                 tool_args = {}
                 tool_out = None
+
+                # First try the tool_calls field (legacy)
                 tc = ev.get("tool_calls")
                 if isinstance(tc, list) and tc:
                     tool_name = (tc[0] or {}).get("name")
@@ -707,6 +733,22 @@ class RichStreamRenderer:
                     tool_name = tc.get("name")
                     tool_args = tc.get("args") or {}
                     tool_out = tc.get("output")
+
+                # Then try the tool_info field in metadata (new format)
+                tool_info = metadata.get("tool_info", {})
+                if tool_info and not tool_name:
+                    # Handle running tool calls
+                    tool_calls = tool_info.get("tool_calls", [])
+                    if tool_calls and isinstance(tool_calls, list):
+                        first_call = tool_calls[0] if tool_calls else {}
+                        tool_name = first_call.get("name")
+                        tool_args = first_call.get("args", {})
+
+                    # Handle finished tool with output
+                    if tool_info.get("name"):
+                        tool_name = tool_info.get("name")
+                        tool_args = tool_info.get("args", {})
+                        tool_out = tool_info.get("output")
 
                 # Heuristic: delegation events (sub-agent) signalled by message, or parent/child context ids
                 message_en = ev.get("metadata", {}).get("message", {}).get("en", "")
@@ -718,6 +760,9 @@ class RichStreamRenderer:
                     )
                 )
                 child_ctx = ev.get("child_context_id") or ev.get("sub_context_id")
+
+                # Check if this is a delegation tool (like delegate_to_weather-sub-agent)
+                is_delegation_tool = tool_name and self._is_delegation_tool(tool_name)
 
                 # Parent mapping: if this step spawns a child context, remember who spawned it
                 parent_id = None
@@ -752,6 +797,29 @@ class RichStreamRenderer:
                     self._ensure_live()  # Ensure live for step-first runs
                     self._refresh()
                     return
+
+                # If this is a delegation tool, create a sub-agent panel immediately
+                if is_delegation_tool and not self.show_delegate_tool_panels:
+                    # Extract sub-agent name from tool name (e.g., "delegate_to_weather-sub-agent" -> "weather-sub-agent")
+                    sub_agent_name = tool_name.replace("delegate_to_", "").replace(
+                        "delegate_", ""
+                    )
+
+                    # Create a unique context ID for this delegation
+                    delegation_context_id = f"{context_id}_delegation_{tool_name}"
+
+                    # Create sub-agent panel immediately
+                    if delegation_context_id not in self.context_panels:
+                        self.context_panels[delegation_context_id] = []
+                        self.context_meta[delegation_context_id] = {
+                            "title": f"Sub-Agent: {sub_agent_name}",
+                            "kind": "delegate",
+                            "status": "running",
+                        }
+                        self.context_order.append(delegation_context_id)
+
+                    # Mark this as a delegation tool to avoid creating tool panels
+                    is_delegation_tool = True
 
                 # Pick kind for this step
                 kind_name = (
@@ -794,10 +862,11 @@ class RichStreamRenderer:
                     # If it's a tool, ensure a tool panel exists and is running
                     if kind_name == "tool":
                         # Suppress tool panel for delegation tools unless explicitly enabled
-                        if not (
-                            self._is_delegation_tool(name)
-                            and not self.show_delegate_tool_panels
-                        ):
+                        should_show_panel = (
+                            not self._is_delegation_tool(name)
+                            or self.show_delegate_tool_panels
+                        )
+                        if should_show_panel:
                             sid = st.step_id
                             if sid not in self.tool_panels:
                                 self.tool_panels[sid] = {
@@ -820,6 +889,33 @@ class RichStreamRenderer:
                         sid = st.step_id
 
                         out = tool_out or ""
+
+                        # Handle delegation tools by updating sub-agent panels
+                        if (
+                            self._is_delegation_tool(name)
+                            and not self.show_delegate_tool_panels
+                        ):
+                            # Find the corresponding sub-agent panel and update it
+                            delegation_context_id = f"{context_id}_delegation_{name}"
+                            if delegation_context_id in self.context_panels:
+                                # Update the sub-agent panel with the delegation tool output
+                                self.context_panels[delegation_context_id].append(out)
+                                self.context_meta[delegation_context_id]["status"] = (
+                                    "finished"
+                                )
+
+                                # Remove any accidentally created tool panel
+                                if sid in self.tool_panels:
+                                    self.tool_panels.pop(sid, None)
+                                    try:
+                                        self.tool_order.remove(sid)
+                                    except ValueError:
+                                        pass
+
+                                self._ensure_live()
+                                self._refresh()
+                                return
+
                         # First, see if this created a sub-agent panel
                         self._process_tool_output_for_sub_agents(
                             name, out, task_id, context_id
