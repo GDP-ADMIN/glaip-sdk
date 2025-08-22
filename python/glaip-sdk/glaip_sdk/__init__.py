@@ -8,5 +8,5 @@ from .client import Client
 from .exceptions import AIPError
 from .models import MCP, Agent, Tool
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __all__ = ["Client", "Agent", "Tool", "MCP", "AIPError"]

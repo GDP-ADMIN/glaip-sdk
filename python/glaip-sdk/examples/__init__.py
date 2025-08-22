@@ -31,6 +31,6 @@ Authors:
     Raymond Christopher (raymond.christopher@gdplabs.id)
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Raymond Christopher"
 __email__ = "raymond.christopher@gdplabs.id"
