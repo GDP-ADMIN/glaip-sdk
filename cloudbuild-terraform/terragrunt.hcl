@@ -8,7 +8,7 @@ remote_state {
   config = {
     project     = "gdp-labs"
     bucket      = "gl-terraform-state"
-    prefix      = "terragrunt/gen-ai-external/${path_relative_to_include()}"
+    prefix      = "terragrunt/glaip-sdk/${path_relative_to_include()}"
     credentials = "key/tf-key.json"
   }
 
