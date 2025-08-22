@@ -14,7 +14,7 @@ DEFAULT_AGENT_TIMEOUT = 300.0
 
 # User agent
 SDK_NAME = "glaip-sdk"
-SDK_VERSION = "0.1.0"
+SDK_VERSION = "0.1.1"
 
 # Reserved names that cannot be used for agents/tools
 RESERVED_NAMES = {
