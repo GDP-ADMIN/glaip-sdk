@@ -522,6 +522,45 @@ make test-integration
 make pre-commit
 ```
 
+### Version Management
+
+The project uses `bump2version` for automated version management. This ensures all version references are updated consistently across the codebase.
+
+#### Quick Version Bumps
+
+```bash
+# Bump patch version (0.1.0 → 0.1.1) - for bug fixes
+python scripts/bump_version.py patch
+
+# Bump minor version (0.1.0 → 0.2.0) - for new features
+python scripts/bump_version.py minor
+
+# Bump major version (0.1.0 → 1.0.0) - for breaking changes
+python scripts/bump_version.py major
+
+# Preview changes without making them
+python scripts/bump_version.py --dry-run patch
+```
+
+#### What Gets Updated
+
+The following files are automatically updated when bumping versions:
+- `pyproject.toml` - Package version
+- `glaip_sdk/__init__.py` - Module version
+- `glaip_sdk/cli/main.py` - CLI version display
+- `glaip_sdk/config/constants.py` - SDK version constant
+- `examples/__init__.py` - Examples version
+
+#### After Version Bump
+
+```bash
+# Push changes and tags
+git push --follow-tags
+
+# Create GitHub release for the new version
+# (GitHub releases will automatically use the git tag)
+```
+
 ---
 
 ## 🚨 **Error Handling**
