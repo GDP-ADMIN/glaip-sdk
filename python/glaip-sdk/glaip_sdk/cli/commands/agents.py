@@ -142,6 +142,11 @@ def get(ctx, agent_ref, select):
     "--compact/--verbose", default=True, help="Collapse tool steps (default: compact)"
 )
 @click.option(
+    "--show-params/--hide-params",
+    default=True,
+    help="Show tool parameters (default: show)",
+)
+@click.option(
     "--save",
     type=click.Path(dir_okay=False, writable=True),
     help="Save transcript to file (md or json)",
@@ -165,6 +170,7 @@ def run(
     timeout,
     view,
     compact,
+    show_params,
     save,
     theme,
     files,
@@ -198,7 +204,11 @@ def run(
             # Use RichStreamRenderer for all streaming output
             # Different view formats are handled in the output logic below
             renderer = RichStreamRenderer(
-                console, verbose=not compact, theme=theme, use_emoji=True
+                console,
+                verbose=not compact,
+                theme=theme,
+                use_emoji=True,
+                show_params=show_params,
             )
 
         # Run agent

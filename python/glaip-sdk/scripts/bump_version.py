@@ -8,27 +8,27 @@ This script provides convenient commands to bump version numbers:
 
 Usage:
     python scripts/bump_version.py patch    # Bump patch version
-    python scripts/bump_version.py minor    # Bump minor version  
+    python scripts/bump_version.py minor    # Bump minor version
     python scripts/bump_version.py major    # Bump major version
     python scripts/bump_version.py --dry-run patch  # Preview changes
 """
 
-import sys
-import subprocess
 import argparse
+import subprocess
+import sys
 from pathlib import Path
 
 
 def run_bump2version(version_type, dry_run=False):
     """Run bump2version with the specified version type."""
     cmd = ["bump2version"]
-    
+
     if dry_run:
         cmd.append("--dry-run")
         cmd.append("--verbose")
-    
+
     cmd.append(version_type)
-    
+
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         print(result.stdout)
@@ -47,33 +47,31 @@ def main():
     parser.add_argument(
         "version_type",
         choices=["patch", "minor", "major"],
-        help="Type of version bump to perform"
+        help="Type of version bump to perform",
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Preview changes without making them"
+        "--dry-run", action="store_true", help="Preview changes without making them"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Check if we're in the right directory
     if not Path(".bumpversion.cfg").exists():
         print("❌ Error: .bumpversion.cfg not found!")
         print("   Make sure you're running this from the project root directory.")
         sys.exit(1)
-    
+
     print(f"🚀 Bumping {args.version_type} version...")
     if args.dry_run:
         print("🔍 Dry run mode - no changes will be made")
-    
+
     success = run_bump2version(args.version_type, args.dry_run)
-    
+
     if success:
         if args.dry_run:
             print("✅ Dry run completed successfully")
         else:
-            print(f"✅ Version bumped successfully!")
+            print("✅ Version bumped successfully!")
             print("💡 Don't forget to:")
             print("   - Push the changes: git push --follow-tags")
             print("   - Create a GitHub release for the new version")

@@ -1,5 +1,5 @@
 remote_state {
-  backend = "gcs" 
+  backend = "gcs"
   generate = {
     path      = "main_backend.tf"
     if_exists = "overwrite_terragrunt"
